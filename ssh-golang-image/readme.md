@@ -1,6 +1,13 @@
 
+# SSH + Golang + Python Docker Image
 
-# SSH-Ready Golang Docker Image
+This project builds a Docker image with:
+
+- ✅ OpenSSH server (port configurable)
+- ✅ Golang 1.21 (modularized under `/golang`)
+- ✅ Python 3 (modularized under `/python`)
+- ✅ Internal CA certs (e.g., Zscaler)
+
 
 This image sets up a Golang environment with OpenSSH access and custom certificate injection (e.g. Zscaler).
 
@@ -54,9 +61,26 @@ docker build \
 docker run -d -p 2222:22 --name sship ssh-golang-image
 ```
 
+```
+# Check container IP and details
+docker inspect sship | grep IPAddress
+```
+
 ### 5. Connect via SSH
 ```
 ssh saduser@localhost -p 2222
+```
+
+### 🧪 Test Commands
+Inside container:
+
+# Run Golang app
+```
+cd /app/golang && go run main.go
+```
+# Run Python script
+```
+cd /app/python && python3 script.py
 ```
 
 ### 🚨 Notes
@@ -68,4 +92,7 @@ Use SSH keys and proper secrets management in production.
 Many corporate environments (like behind Zscaler) intercept SSL traffic and require adding custom CA root certificates to your containers to allow secure HTTPS access (e.g., curl, go get, apt).
 
 
+🔐 go.sum Protects you from supply-chain attacks and unexpected changes.
+Required by `go build`, `go mod tidy`, and other tools to ensure safety.
 
+💡 Tip: Never edit go.sum manually. It's automatically maintained by Go tooling (go get, go mod tidy, etc.).

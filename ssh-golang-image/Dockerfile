@@ -1,6 +1,7 @@
 
 # Stage 1: Fetch and extract custom root certs
 FROM curlimages/curl:latest AS certs
+# FROM debian:bullseye AS certs
 
 # 1. COPY and Extract Certs
 # Unpacks your custom certs into /tmp/certs in the intermediate build stage.
@@ -29,11 +30,22 @@ ENV http_proxy=$HTTP_PROXY \
     no_proxy=$NO_PROXY \
     GOPROXY=$GOPROXY
 
-# Install CA certs and OpenSSH
+# Install CA certs, OpenSSH, Python and pip
 RUN apt-get update && \
-    apt-get install -y ca-certificates openssh-server && \
+    apt-get install -y --no-install-recommends \
+        ca-certificates \
+        openssh-server \
+        python3 \
+        python3-pip && \
     update-ca-certificates && \
-    mkdir -p /app /var/run/sshd
+    mkdir -p /app /var/run/sshd && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
+
+# --no-install-recommends	: Prevents unnecessary packages from being installed, keeping the image smaller
+# apt-get clean && rm -rf /var/lib/apt/lists/*	: Cleans up to reduce image size and remove cache
+# mkdir -p /app /var/run/sshd	: Ensures both /app and SSH runtime directories are created in one command
+
 
 # Copy certs from previous stage
 # Copy Extracted .crt Files into the Final Image
@@ -53,6 +65,25 @@ RUN useradd -m -s /bin/bash ${SSH_USER} && \
 # Enable root login via SSH (for dev/test only)
 RUN sed -i 's/^#*PermitRootLogin .*/PermitRootLogin yes/' /etc/ssh/sshd_config
 
+# RUN useradd -m -s /bin/bash saduser && \
+#    echo 'saduser:password' | chpasswd && \
+#    sed -i 's/PermitRootLogin prohibit-password/PermitRootLogin yes/' /etc/ssh/sshd_config
+
+# --- Golang Setup ---
+WORKDIR /app/golang
+COPY golang/go.mod golang/go.sum ./
+RUN go mod download
+COPY golang/*.go ./
+# Optional build: RUN go build -o myapp main.go
+
+# --- Python Setup ---
+WORKDIR /app/python
+COPY python/requirements.txt .
+RUN pip3 install --no-cache-dir -r requirements.txt
+COPY python/*.py ./
+
+
+# Expose SSH
 EXPOSE 22
 WORKDIR /app
 CMD ["/usr/sbin/sshd", "-D"]
